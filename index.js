@@ -9,9 +9,7 @@ const { xxhashAsHex } = require('@polkadot/util-crypto');
 const execFileSync = require('child_process').execFileSync;
 const execSync = require('child_process').execSync;
 const binaryPath = path.join(__dirname, 'data', 'binary');
-const wasmPath = path.join(__dirname, 'data', 'runtime.wasm');
 const schemaPath = path.join(__dirname, 'data', 'schema.json');
-const hexPath = path.join(__dirname, 'data', 'runtime.hex');
 const originalSpecPath = path.join(__dirname, 'data', 'genesis.json');
 const forkedSpecPath = path.join(__dirname, 'data', 'fork.json');
 const storagePath = path.join(__dirname, 'data', 'storage.json');
@@ -61,12 +59,6 @@ async function main() {
   }
   execFileSync('chmod', ['+x', binaryPath]);
 
-  if (!fs.existsSync(wasmPath)) {
-    console.log(chalk.red('WASM missing. Please copy the WASM blob of your substrate node to the data folder and rename it to "runtime.wasm"'));
-    process.exit(1);
-  }
-  execSync('cat ' + wasmPath + ' | hexdump -ve \'/1 "%02x"\' > ' + hexPath);
-
   let api;
   console.log(chalk.green('We are intentionally using the HTTP endpoint. If you see any warnings about that, please ignore them.'));
   if (!fs.existsSync(schemaPath)) {
@@ -95,6 +87,8 @@ async function main() {
     stream.end();
     progressBar.stop();
   }
+
+  const runtime = (await api.rpc.state.getStorage('0x3a636f6465')).toString();
 
   const metadata = await api.rpc.state.getMetadata();
   // Populate the prefixes array
@@ -139,7 +133,7 @@ async function main() {
   fixParachinStates(api, forkedSpec);
 
   // Set the code to the current runtime code
-  forkedSpec.genesis.raw.top['0x3a636f6465'] = '0x' + fs.readFileSync(hexPath, 'utf8').trim();
+  forkedSpec.genesis.raw.top['0x3a636f6465'] = runtime.trim();
 
   // To prevent the validator set from changing mid-test, set Staking.ForceEra to ForceNone ('0x02')
   forkedSpec.genesis.raw.top['0x5f3e4907f716ac89b6347d15ececedcaf7dad0317324aecae8744b87fc95f2f3'] = '0x02';
