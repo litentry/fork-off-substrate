@@ -16,8 +16,7 @@ const originalSpecPath = path.join(__dirname, 'data', 'genesis.json');
 const forkedSpecPath = path.join(__dirname, 'data', 'fork.json');
 const storagePath = path.join(__dirname, 'data', 'storage.json');
 
-// Using http endpoint since substrate's Ws endpoint has a size limit.
-const provider = new WsProvider(process.env.HTTP_RPC_ENDPOINT || 'http://localhost:9933')
+const provider = new WsProvider(process.env.WS_RPC_ENDPOINT || 'ws://127.0.0.1:9944')
 // The storage download will be split into 256^chunksLevel chunks.
 const chunksLevel = process.env.FORK_CHUNKS_LEVEL || 1;
 const totalChunks = Math.pow(256, chunksLevel);
