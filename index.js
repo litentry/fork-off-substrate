@@ -88,7 +88,7 @@ async function main() {
     progressBar.stop();
   }
 
-  const runtime = (await api.rpc.state.getStorage('0x3a636f6465')).toString();
+  const runtime = (await api.rpc.state.getStorage(":code")).toString();
 
   const metadata = await api.rpc.state.getMetadata();
   // Populate the prefixes array
