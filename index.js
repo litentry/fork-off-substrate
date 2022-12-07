@@ -43,6 +43,11 @@ const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_cla
  */
 let prefixes = ['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9' /* System.Account */];
 
+/**
+ * skip ParachainSystem module, mainly due to two problems that we encountered:
+ * - parachainSystem.lastRelayChainBlockNumber => we use RelayNumberStrictlyIncreases, needs to be reset to 0
+ * - parachainSystem.LastDmqMqcHead => expected to be 0
+ */
 const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem'];
 
 async function fixParachinStates (api, forkedSpec) {
@@ -139,11 +144,6 @@ async function main() {
 
   // To prevent the validator set from changing mid-test, set Staking.ForceEra to ForceNone ('0x02')
   forkedSpec.genesis.raw.top['0x5f3e4907f716ac89b6347d15ececedcaf7dad0317324aecae8744b87fc95f2f3'] = '0x02';
-
-  // Reset parachainSystem.lastRelayChainBlockNumber to 0
-  // otherwise we get the error: "Relay chain block number needs to strictly increase between Parachain blocks"
-  // as we are using `type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;`
-  forkedSpec.genesis.raw.top['0x45323df7cc47150b3930e2666b0aa313a2bca190d36bd834cc73a38fc213ecbd'] = '0x00000000';
 
   if (alice !== '') {
     // Set sudo key to //Alice
