@@ -60,7 +60,7 @@ async function main() {
   execFileSync('chmod', ['+x', binaryPath]);
 
   let api;
-  console.log(chalk.green('We are intentionally using the HTTP endpoint. If you see any warnings about that, please ignore them.'));
+  console.log(chalk.green('We are intentionally using the WSS endpoint. If you see any warnings about that, please ignore them.'));
   if (!fs.existsSync(schemaPath)) {
     console.log(chalk.yellow('Custom Schema missing, using default schema.'));
     api = await ApiPromise.create({ provider });
