@@ -41,7 +41,7 @@ const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_cla
  * e.g. console.log(xxhashAsHex('System', 128)).
  */
 let prefixes = ['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9' /* System.Account */];
-const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking'];
+const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem'];
 
 async function fixParachinStates (api, forkedSpec) {
   const skippedKeys = [
@@ -158,10 +158,17 @@ main();
 
 async function fetchChunks(prefix, levelsRemaining, stream, at) {
   if (levelsRemaining <= 0) {
-    const pairs = await provider.send('state_getPairs', [prefix, at]);
-    if (pairs.length > 0) {
+    const keys = await provider.send('state_getKeys',[prefix,at]);
+
+    if (keys.length > 0) {
+        let value_array = [];
+        await Promise.all(keys.map(async (key) => {
+            const value =await provider.send('state_getStorage', [key, at]);
+            value_array.push([key, value]);
+        }));
+
       separator ? stream.write(",") : separator = true;
-      stream.write(JSON.stringify(pairs).slice(1, -1));
+      stream.write(JSON.stringify(value_array).slice(1, -1));
     }
     progressBar.update(++chunksFetched);
     return;
