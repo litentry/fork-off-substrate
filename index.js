@@ -4,20 +4,18 @@ const chalk = require('chalk');
 const cliProgress = require('cli-progress');
 require("dotenv").config();
 const { ApiPromise } = require('@polkadot/api');
-const { HttpProvider } = require('@polkadot/rpc-provider');
+const { WsProvider } = require('@polkadot/rpc-provider');
 const { xxhashAsHex } = require('@polkadot/util-crypto');
 const execFileSync = require('child_process').execFileSync;
 const execSync = require('child_process').execSync;
 const binaryPath = path.join(__dirname, 'data', 'binary');
-const wasmPath = path.join(__dirname, 'data', 'runtime.wasm');
 const schemaPath = path.join(__dirname, 'data', 'schema.json');
-const hexPath = path.join(__dirname, 'data', 'runtime.hex');
 const originalSpecPath = path.join(__dirname, 'data', 'genesis.json');
 const forkedSpecPath = path.join(__dirname, 'data', 'fork.json');
 const storagePath = path.join(__dirname, 'data', 'storage.json');
+const pageSize = process.env.PAGE_SIZE || 100;
 
-// Using http endpoint since substrate's Ws endpoint has a size limit.
-const provider = new HttpProvider(process.env.HTTP_RPC_ENDPOINT || 'http://localhost:9933')
+const provider = new WsProvider(process.env.WS_RPC_ENDPOINT || 'ws://127.0.0.1:9944')
 // The storage download will be split into 256^chunksLevel chunks.
 const chunksLevel = process.env.FORK_CHUNKS_LEVEL || 1;
 const totalChunks = Math.pow(256, chunksLevel);
@@ -44,7 +42,13 @@ const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_cla
  * e.g. console.log(xxhashAsHex('System', 128)).
  */
 let prefixes = ['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9' /* System.Account */];
-const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt'];
+
+/**
+ * skip ParachainSystem module, mainly due to two problems that we encountered:
+ * - parachainSystem.lastRelayChainBlockNumber => we use RelayNumberStrictlyIncreases, needs to be reset to 0
+ * - parachainSystem.LastDmqMqcHead => expected to be 0
+ */
+const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem'];
 
 async function fixParachinStates (api, forkedSpec) {
   const skippedKeys = [
@@ -62,14 +66,8 @@ async function main() {
   }
   execFileSync('chmod', ['+x', binaryPath]);
 
-  if (!fs.existsSync(wasmPath)) {
-    console.log(chalk.red('WASM missing. Please copy the WASM blob of your substrate node to the data folder and rename it to "runtime.wasm"'));
-    process.exit(1);
-  }
-  execSync('cat ' + wasmPath + ' | hexdump -ve \'/1 "%02x"\' > ' + hexPath);
-
   let api;
-  console.log(chalk.green('We are intentionally using the HTTP endpoint. If you see any warnings about that, please ignore them.'));
+  console.log(chalk.green('We are intentionally using the WSS endpoint. If you see any warnings about that, please ignore them.'));
   if (!fs.existsSync(schemaPath)) {
     console.log(chalk.yellow('Custom Schema missing, using default schema.'));
     api = await ApiPromise.create({ provider });
@@ -96,6 +94,8 @@ async function main() {
     stream.end();
     progressBar.stop();
   }
+
+  const runtime = (await api.rpc.state.getStorage(":code")).toString();
 
   const metadata = await api.rpc.state.getMetadata();
   // Populate the prefixes array
@@ -140,7 +140,7 @@ async function main() {
   fixParachinStates(api, forkedSpec);
 
   // Set the code to the current runtime code
-  forkedSpec.genesis.raw.top['0x3a636f6465'] = '0x' + fs.readFileSync(hexPath, 'utf8').trim();
+  forkedSpec.genesis.raw.top['0x3a636f6465'] = runtime.trim();
 
   // To prevent the validator set from changing mid-test, set Staking.ForceEra to ForceNone ('0x02')
   forkedSpec.genesis.raw.top['0x5f3e4907f716ac89b6347d15ececedcaf7dad0317324aecae8744b87fc95f2f3'] = '0x02';
@@ -159,11 +159,27 @@ async function main() {
 main();
 
 async function fetchChunks(prefix, levelsRemaining, stream, at) {
+  // replace getpairs with getkeypaged & getstorage
   if (levelsRemaining <= 0) {
-    const pairs = await provider.send('state_getPairs', [prefix, at]);
-    if (pairs.length > 0) {
-      separator ? stream.write(",") : separator = true;
-      stream.write(JSON.stringify(pairs).slice(1, -1));
+      let startKey = null;
+      while (true) {
+        const keys = await provider.send('state_getKeysPaged', [prefix, pageSize, startKey, at]);
+        if (keys.length > 0) {
+          let pairs = [];
+          await Promise.all(keys.map(async (key) => {
+            const value = await provider.send('state_getStorage', [key, at]);
+            pairs.push([key, value]);
+          }));
+  
+          separator ? stream.write(",") : separator = true;
+          stream.write(JSON.stringify(pairs).slice(1, -1));
+  
+          startKey = keys[keys.length - 1];
+        }
+  
+        if (keys.length < pageSize) {
+          break;
+        }
     }
     progressBar.update(++chunksFetched);
     return;
