@@ -13,6 +13,7 @@ const schemaPath = path.join(__dirname, 'data', 'schema.json');
 const originalSpecPath = path.join(__dirname, 'data', 'genesis.json');
 const forkedSpecPath = path.join(__dirname, 'data', 'fork.json');
 const storagePath = path.join(__dirname, 'data', 'storage.json');
+const pageSize = process.env.PAGE_SIZE || 100;
 
 const provider = new WsProvider(process.env.WS_RPC_ENDPOINT || 'ws://127.0.0.1:9944')
 // The storage download will be split into 256^chunksLevel chunks.
@@ -41,6 +42,7 @@ const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_cla
  * e.g. console.log(xxhashAsHex('System', 128)).
  */
 let prefixes = ['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9' /* System.Account */];
+
 const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem'];
 
 async function fixParachinStates (api, forkedSpec) {
@@ -157,18 +159,27 @@ async function main() {
 main();
 
 async function fetchChunks(prefix, levelsRemaining, stream, at) {
+  // replace getpairs with getkeypaged & getstorage
   if (levelsRemaining <= 0) {
-    const keys = await provider.send('state_getKeys',[prefix,at]);
-
-    if (keys.length > 0) {
-        let value_array = [];
-        await Promise.all(keys.map(async (key) => {
-            const value =await provider.send('state_getStorage', [key, at]);
-            value_array.push([key, value]);
-        }));
-
-      separator ? stream.write(",") : separator = true;
-      stream.write(JSON.stringify(value_array).slice(1, -1));
+      let startKey = null;
+      while (true) {
+        const keys = await provider.send('state_getKeysPaged', [prefix, pageSize, startKey, at]);
+        if (keys.length > 0) {
+          let pairs = [];
+          await Promise.all(keys.map(async (key) => {
+            const value = await provider.send('state_getStorage', [key, at]);
+            pairs.push([key, value]);
+          }));
+  
+          separator ? stream.write(",") : separator = true;
+          stream.write(JSON.stringify(pairs).slice(1, -1));
+  
+          startKey = keys[keys.length - 1];
+        }
+  
+        if (keys.length < pageSize) {
+          break;
+        }
     }
     progressBar.update(++chunksFetched);
     return;
