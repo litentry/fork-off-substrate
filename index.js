@@ -145,6 +145,11 @@ async function main() {
   // To prevent the validator set from changing mid-test, set Staking.ForceEra to ForceNone ('0x02')
   forkedSpec.genesis.raw.top['0x5f3e4907f716ac89b6347d15ececedcaf7dad0317324aecae8744b87fc95f2f3'] = '0x02';
 
+  // clear the "flags" in ALICE to use the "old" mode
+  // see https://linear.app/litentry/issue/P-262/runtime-upgrade-simulation-fails-to-work
+  // to be removed afer the `upgrade_account` is called on the prod chain
+  forkedSpec.genesis.raw.top['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d'] = '0x000000000100000001000000000000000080c6a47e8d03000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
   if (alice !== '') {
     // Set sudo key to //Alice
     forkedSpec.genesis.raw.top['0x5c0d1176a568c1f92944340dbfed9e9c530ebca703c85910e7164cb7d1c9e47b'] = '0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d';
