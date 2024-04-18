@@ -48,7 +48,7 @@ let prefixes = ['0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371
  * - parachainSystem.lastRelayChainBlockNumber => we use RelayNumberStrictlyIncreases, needs to be reset to 0
  * - parachainSystem.LastDmqMqcHead => expected to be 0
  */
-const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem'];
+const skippedModulesPrefix = ['Authorship', 'CollatorSelection', 'Session', 'Aura', 'AuraExt', 'ParachainStaking','ParachainSystem','TechnicalCommittee','TechnicalCommitteeMembership','Council','CouncilMembership'];
 
 async function fixParachinStates (api, forkedSpec) {
   const skippedKeys = [
