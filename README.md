@@ -20,7 +20,10 @@ This script allows bootstrapping a new substrate chain with the current state of
 
 3. Copy the executable/binary of your substrate based node inside the data folder and rename it to `binary`.
 
-4. Copy the runtime WASM blob of your substrate based blockchain to the data folder and rename it to `runtime.wasm`. To get the WASM blob, compile your blockchain and look for `./target/release/wbuild/runtime/runtime.compact.wasm`. If you are forking Polkadot/Kusama/Westend, you can download the WASM blobs from [Polkadot's release page](https://github.com/paritytech/polkadot/releases).
+4. Copy the runtime WASM blob of your substrate based blockchain to the data folder and rename it to `runtime.wasm`. To get the WASM blob, compile your blockchain and look for 
+        `./target/release/wbuild/runtime/runtime.compact.wasm`
+        `./target/release/wbuild/runtime/runtime.compact.compressed.wasm`. 
+If you are forking Polkadot/Kusama/Westend, you can download the WASM blobs from [Polkadot's release page](https://github.com/paritytech/polkadot/releases).
 
 5. If your substrate chain uses additional custom types than what are available in polkadot.js, define them in a JSON file of format `{ "types": { <YOUR_TYPES> } }`. Copy the file to the `data` folder and rename it to `schema.json`.
 
@@ -33,10 +36,11 @@ This script allows bootstrapping a new substrate chain with the current state of
         npm start
         ```
 
-    * If you are using an external/non-default endpoint, you need to provide it to the script via the `HTTP_RPC_ENDPOINT` environment variable
+    * If you are using an external/non-default endpoint, you need to provide it to the script via the `WS_RPC_ENDPOINT` environment variable
 
         ```bash
-        HTTP_RPC_ENDPOINT=https://example.com npm start
+        WS_RPC_ENDPOINT=ws://example.com npm start
+        ORIG_CHAIN=litentry FORK_CHAIN=litentry-dev WS_RPC_ENDPOINT=wss://rpc.litentry-parachain.litentry.io npm start
         ```
 
 8. You should have the genesis file for the forked chain inside the `data` folder. It will be called `fork.json`.
